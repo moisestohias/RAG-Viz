@@ -2,47 +2,19 @@
 This script reads data stored in JSON format, calculates vector embeddings, and populates the data in SQLite database. It leverages the `sqlite-vec` extension to store the text embeddings for efficient vector similarity search, while also storing the raw comment details in a separate table.
 """
 
-import sqlite3, json, struct
-from contextlib import contextmanager
+import sqlite3, json
 from embedder import EMBEDDING_MODELS, embed
 from helper_utils import os, expand_full_path_and_ensure_file_exist, expand_full_path
 
 EMBEDDING_DIM = 1024
 MAX_TEXT_LEN = 200
 
-def serialize_f32(vector: list[float]) -> bytes:
-    """serializes a list of floats into a compact "raw bytes" format"""
-    return struct.pack("%sf" % len(vector), *vector)
-def deserialize_f32(blob: bytes) -> list[float]:
-    """Convert raw bytes back into a list of floats."""
-    length = len(blob) // 4
-    return list(struct.unpack(f"{length}f", blob))
-
-def load_sqlite_vec_extension(conn:sqlite3.Connection, sqlite_vec_extension_path:str="~/.local/vec0.so"):
-    sqlite_vec_extension_path = expand_full_path_and_ensure_file_exist(sqlite_vec_extension_path)
-    conn.enable_load_extension(True)
-    try: conn.load_extension(sqlite_vec_extension_path)
-    finally: conn.enable_load_extension(False)
-    return conn # not needed, modification happens in place - just nice for method chaining.
-
-@contextmanager
-def init_sqlite_vec(db_path: str = ":memory:") -> sqlite3.Connection:
-    db_path = db_path = expand_full_path(db_path)
-    if not os.path.exists(db_path): print("❗ No exisint database found, creating one")
-    """Initialize an SQLite connection with sqlite-vec loaded."""
-    conn = sqlite3.connect(db_path)
-    conn.execute("PRAGMA foreign_keys = ON;")
-    load_sqlite_vec_extension(conn)
-    try: yield conn
-    finally: conn.close()
-
 def populate_db_with_embedding(data: list[dict],
                                      db_name: str = "db.db",
-                                     limit_long_text:bool=False,  # ❗ BEAWRE
+                                     limit_long_text:bool=False,  # ❗ BEAWRE - Keep it false
                                      MAX_TEXT_LEN:int=MAX_TEXT_LEN,
                                      batch_size:int=10):
-    if not data:
-        return 0
+    if not data: return 0
 
     # Calculate total items to process (excluding existing IDs)
     with init_sqlite_vec(db_name) as conn:
@@ -50,12 +22,10 @@ def populate_db_with_embedding(data: list[dict],
         try:
             cur.execute("SELECT id FROM vec_emb WHERE document_embedding IS NOT NULL;")
             existing_ids = {row[0] for row in cur.fetchall()}
-        finally:
-            cur.close()
+        finally: cur.close()
 
     # Count total items to process
-    total_items = sum(1 for k, v in data.items()
-                     if k not in existing_ids and (v.get("content") or "").strip())
+    total_items = sum(1 for k, v in data.items() if k not in existing_ids and (v.get("content") or "").strip())
 
     inserted_count = 0
     processed_count = 0

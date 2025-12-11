@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UMAP Embeddings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen">
+    <header class="p-4 bg-gray-800 border-b border-gray-700">
+        <form hx-post="/api/umap" hx-swap="none" _="on htmx:beforeRequest add .opacity-40 to #viz
+                 on htmx:afterRequest remove .opacity-40 from #viz then call updateViz(event.detail.xhr.responseText)">
+            <div class="flex gap-4 items-end flex-wrap">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">n_neighbors</label>
+                    <input type="number" name="n_neighbors" value="15" min="2" max="100"
+                        class="bg-gray-700 border border-gray-600 rounded px-2 py-1 w-24 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">min_dist</label>
+                    <input type="number" name="min_dist" value="0.1" min="0" max="1" step="0.05"
+                        class="bg-gray-700 border border-gray-600 rounded px-2 py-1 w-24 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">metric</label>
+                    <select name="metric"
+                        class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500">
+                        <option value="euclidean">euclidean</option>
+                        <option value="cosine">cosine</option>
+                        <option value="manhattan">manhattan</option>
+                    </select>
+                </div>
+                <div class="border-l border-gray-600 pl-4">
+                    <label class="block text-xs text-gray-400 mb-1">point size: <span id="size-val">1</span></label>
+                    <input type="range" id="point-size" min="0.1" max="2" value="1" step="0.2"
+                        class="w-24 accent-blue-500"
+                        _="on input set #size-val.textContent to my.value then call setPointSize(my.value)">
+                </div>
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded text-sm transition-colors">
+                    Compute
+                </button>
+                <span class="text-xs text-gray-500 self-center ml-auto">drag to rotate • ctrl+drag to pan • scroll to
+                    zoom • click point to anchor • dblclick to reset</span>
+            </div>
+        </form>
+    </header>
+
+    <main class="flex justify-center items-center" style="height:calc(100vh - 72px)">
+        <svg id="viz" class="transition-opacity duration-300 cursor-grab active:cursor-grabbing"></svg>
+    </main>
+
+    <div id="tooltip"
+        class="fixed bg-black/90 border border-gray-700 px-2 py-1 rounded text-xs pointer-events-none opacity-0 transition-opacity z-50">
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>
